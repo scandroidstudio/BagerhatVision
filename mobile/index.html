@@ -1375,9 +1375,9 @@ body.bv-rotate-mode #player .playerControls{transition:opacity .25s ease,visibil
    if(isUrl&&/^https?:\/\//i.test(it.value))v='<a href="'+esc(it.value)+'" target="_blank" rel="noopener">'+esc(it.value)+'</a>';
    return '<div class="aboutSettingGroup"><strong>'+esc(it.label)+'</strong><div class="aboutSettingValue">'+v+'</div></div>';
   }).join('');
-  content.innerHTML=html+'<div class="aboutActions"><button type="button" id="aboutApkBtn" class="aboutActionBtn">⬇ APK ডাউনলোড</button><button type="button" id="aboutGroupBtn" class="aboutActionBtn">👥 ফেসবুক গ্রুপ</button><button type="button" id="aboutShareBtn" class="aboutActionBtn">↗ শেয়ার</button></div>';
-  $('aboutApkBtn')?.addEventListener('click',()=>{if(/^https?:\/\//i.test(apkUrl)){try{window.open(apkUrl,'_blank','noopener')}catch(e){location.href=apkUrl}}else if(typeof toast==='function')toast('অ্যাডমিন সেটিংসে APK ডাউনলোড URL দেওয়া নেই')});
-  $('aboutGroupBtn')?.addEventListener('click',()=>{if(/^https?:\/\//i.test(groupUrl)){const a=document.createElement('a');a.href=groupUrl;a.target='_blank';a.rel='noopener noreferrer';a.click();}else if(typeof toast==='function')toast('অ্যাডমিন সেটিংসে ফেসবুক গ্রুপ URL দেওয়া নেই')});
+  content.innerHTML=html+'<div class="aboutActions"><button type="button" id="aboutApkBtn" class="aboutActionBtn" data-url="'+esc(apkUrl||'')+'">⬇ APK ডাউনলোড</button><button type="button" id="aboutGroupBtn" class="aboutActionBtn" data-url="'+esc(groupUrl||'')+'">👥 ফেসবুক গ্রুপ</button><button type="button" id="aboutShareBtn" class="aboutActionBtn" data-url="'+esc(apkUrl||location.href)+'">↗ শেয়ার</button></div>';
+  $('aboutApkBtn')?.addEventListener('click',()=>{const u=$('aboutApkBtn')?.dataset.url||apkUrl;if(/^https?:\/\//i.test(u)){location.href=u}else if(typeof toast==='function')toast('অ্যাডমিন সেটিংসে APK ডাউনলোড URL দেওয়া নেই')});
+  $('aboutGroupBtn')?.addEventListener('click',()=>{const u=$('aboutGroupBtn')?.dataset.url||groupUrl;if(/^https?:\/\//i.test(u)){location.href=u}else if(typeof toast==='function')toast('অ্যাডমিন সেটিংসে ফেসবুক গ্রুপ URL দেওয়া নেই')});
   $('aboutShareBtn')?.addEventListener('click',async()=>{
    const shareText='📺 Bagerhat Vision — লাইভ টিভি দেখুন!\nবন্ধুদের সাথে শেয়ার করুন ❤️\n\n📥 অ্যাপ ডাউনলোড করুন: '+(apkUrl||'[আপনার অ্যাপের ডাউনলোড লিংক]');
    try{if(navigator.share)await navigator.share({title:appName,text:shareText});else if(navigator.clipboard){await navigator.clipboard.writeText(shareText);if(typeof toast==='function')toast('শেয়ারের লেখা ও APK লিংক কপি হয়েছে')}else if(typeof toast==='function')toast('এই ব্রাউজারে শেয়ার সুবিধা নেই')}catch(e){if(e&&e.name!=='AbortError'&&typeof toast==='function')toast('শেয়ার করা যায়নি')}
@@ -1658,10 +1658,10 @@ html,body{width:100%!important;min-height:100%!important;height:auto!important;o
    const b=e.target.closest('#aboutGroupBtn,.aboutGroupBtn');
    if(!b)return;
    e.preventDefault();e.stopImmediatePropagation();
-   let url='';
+   let url=String(b.dataset.url||'').trim();
    const content=$('aboutContent');
    const anchor=content?.querySelector('a[href*="facebook.com"]');
-   if(anchor)url=anchor.href;
+   if(!url&&anchor)url=anchor.href;
    if(!url){
      const rows=[...(Array.isArray(window.settingsRows)?window.settingsRows:[]),...(Array.isArray(window.adminLinks)?window.adminLinks:[])];
      for(const r of rows){
@@ -1679,13 +1679,14 @@ html,body{width:100%!important;min-height:100%!important;height:auto!important;o
    if(!b)return;
    e.preventDefault();e.stopImmediatePropagation();
    const title='Bagerhat Vision';
-   const apkLink=(()=>{const rows=[...(Array.isArray(window.settingsRows)?window.settingsRows:[]),...(Array.isArray(window.adminLinks)?window.adminLinks:[])];for(const r of rows){const k=String(r.key||r.name||r.setting||r.setting_key||r.setting_name||'');const v=String(r.url||r.link||r.download_url||r.setting_value||r.value||r.data||'').trim();if(/apk.*(download|url|link)|download.*(url|link)|update.*url|অ্যাপ আপডেট|ডাউনলোড.*url|আপডেট.*url/i.test(k)&&/^https?:\/\//i.test(v))return v;}return location.href;})();
+   const apkLink=String(b.dataset.url||'').trim()||(()=>{const rows=[...(Array.isArray(window.settingsRows)?window.settingsRows:[]),...(Array.isArray(window.adminLinks)?window.adminLinks:[])];for(const r of rows){const k=String(r.key||r.name||r.setting||r.setting_key||r.setting_name||'');const v=String(r.url||r.link||r.download_url||r.setting_value||r.value||r.data||'').trim();if(/apk.*(download|url|link)|download.*(url|link)|update.*url|অ্যাপ আপডেট|ডাউনলোড.*url|আপডেট.*url/i.test(k)&&/^https?:\/\//i.test(v))return v;}return location.href;})();
    const shareText='📺 Bagerhat Vision — লাইভ টিভি দেখুন!\\nবন্ধুদের সাথে শেয়ার করুন ❤️\\n\\n📥 অ্যাপ ডাউনলোড করুন: '+apkLink;
    try{
+     if(window.Android&&typeof window.Android.shareText==='function'){window.Android.shareText(shareText);return;}
      if(navigator.share){await navigator.share({title,text:shareText,url:apkLink});return;}
      if(isAndroid()){
-       const encoded=encodeURIComponent(shareText).replace(/%20/g,'%20');
-       location.href='intent://send/#Intent;action=android.intent.action.SEND;type=text/plain;S.android.intent.extra.TEXT='+encoded+';S.android.intent.extra.SUBJECT='+encodeURIComponent(title)+';end';
+       const encoded=encodeURIComponent(shareText);
+       location.href='intent:#Intent;action=android.intent.action.SEND;type=text/plain;S.android.intent.extra.TEXT='+encoded+';S.android.intent.extra.SUBJECT='+encodeURIComponent(title)+';end';
        return;
      }
      if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(shareText);toastMsg('শেয়ারের লেখা কপি হয়েছে');}
@@ -1694,3 +1695,29 @@ html,body{width:100%!important;min-height:100%!important;height:auto!important;o
  },true);
 })();
 </script>
+
+
+<!-- V95: definitive fixes for mobile pagination, safe-area drawer, continuous background and About actions -->
+<style id="bv-v95-definitive-mobile-fixes">
+@media(max-width:800px){
+  html,body{min-height:100%!important;background:#030a17!important;overflow-x:hidden!important}
+  .app{position:relative!important;min-height:100dvh!important;height:auto!important;isolation:isolate!important;background:radial-gradient(ellipse at 50% 18%,#0d2038 0,transparent 55%),#030a17!important;padding-top:max(env(safe-area-inset-top),26px)!important;padding-bottom:calc(84px + env(safe-area-inset-bottom))!important}
+  .workspace{background:transparent!important;padding-bottom:calc(18px + env(safe-area-inset-bottom))!important}
+  .workspace>.rightList{display:flex!important;flex-direction:column!important;position:relative!important;overflow:visible!important;background:linear-gradient(180deg,rgba(4,15,31,.98),rgba(3,10,23,.98))!important;padding:0 0 calc(18px + env(safe-area-inset-bottom))!important;margin:0!important;min-height:0!important}
+  .channelList{position:relative!important;display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;grid-template-rows:none!important;grid-auto-rows:auto!important;align-content:start!important;flex:0 0 auto!important;height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important;margin:0!important;padding:0!important;transform:none!important}
+  .channelList .ch{position:relative!important;transform:none!important}
+  .channelPagination{position:static!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;display:flex!important;flex:0 0 auto!important;align-self:stretch!important;width:100%!important;height:auto!important;min-height:42px!important;max-height:none!important;overflow-x:auto!important;overflow-y:hidden!important;flex-wrap:nowrap!important;justify-content:center!important;align-items:center!important;gap:6px!important;margin:14px 0 0!important;padding:8px 4px 12px!important;background:#061326!important;border:1px solid #203a58!important;border-radius:12px!important;box-shadow:none!important;z-index:1!important}
+  .channelPagination .pageBtn{position:static!important;flex:0 0 32px!important;width:32px!important;min-width:32px!important;height:34px!important;min-height:34px!important;margin:0!important;transform:none!important}
+  .mobileBottom{position:fixed!important;left:0!important;right:0!important;bottom:0!important;z-index:100!important;height:calc(76px + env(safe-area-inset-bottom))!important;padding:5px 5px calc(5px + env(safe-area-inset-bottom))!important;background:#061022!important;border-top:1px solid #263b56!important;box-shadow:0 -8px 20px rgba(0,0,0,.25)!important}
+  .menuShade{position:fixed!important;inset:max(env(safe-area-inset-top),26px) 0 0 0!important;z-index:110!important;background:rgba(0,0,0,.62)!important}
+  .menuDrawer{position:absolute!important;left:0!important;top:0!important;bottom:calc(76px + env(safe-area-inset-bottom))!important;height:auto!important;max-height:none!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;padding:10px 10px calc(8px + env(safe-area-inset-bottom))!important;background:#050f22!important}
+  .menuDrawer .drawerBrand{flex:0 0 auto!important}
+  #drawerLinks{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;padding-bottom:24px!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch!important}
+  .aboutShade{z-index:130!important}
+  .app,.workspace,.center,.workspace>.rightList{background-color:#030a17!important}
+}
+@media(max-width:800px) and (orientation:landscape){
+  .app{padding-top:0!important;padding-bottom:0!important}
+  .menuShade{inset:0!important}
+}
+</style>
