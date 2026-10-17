@@ -1604,3 +1604,93 @@ html,body{width:100%!important;min-height:100%!important;height:auto!important;o
   #center > .recent { order:3 !important; }
 }
 </style>
+
+
+<!-- V94: screenshot-driven mobile safe-area, pagination, fullscreen and About actions fixes -->
+<style id="bv-v94-mobile-safearea-pagination">
+@media (max-width:800px){
+  html,body{background:#030a17!important;overflow-x:hidden!important}
+  .app{background:radial-gradient(ellipse at 50% 20%,#0d2038 0,transparent 55%),#030a17!important;padding-top:max(env(safe-area-inset-top),26px)!important;padding-bottom:calc(88px + env(safe-area-inset-bottom))!important}
+  .mobileTop{position:relative!important;top:auto!important;z-index:25!important;background:#040c1c!important;flex-shrink:0!important}
+  .announcement.runningBar{position:relative!important;z-index:1!important;background:#10233c!important;flex-shrink:0!important}
+  .workspace{padding-bottom:calc(24px + env(safe-area-inset-bottom))!important;background:transparent!important}
+  .workspace>.rightList{background:rgba(3,10,23,.94)!important;border:0!important;overflow:visible!important;padding-bottom:calc(92px + env(safe-area-inset-bottom))!important}
+  .channelList{overflow:visible!important;max-height:none!important}
+  .channelPagination{position:relative!important;inset:auto!important;transform:none!important;display:flex!important;flex:0 0 auto!important;width:100%!important;height:auto!important;min-height:42px!important;max-height:none!important;overflow-x:auto!important;overflow-y:hidden!important;flex-wrap:nowrap!important;justify-content:center!important;align-items:center!important;margin:10px 0 0!important;padding:7px 4px 12px!important;background:#061326!important;border-top:1px solid #203a58!important;z-index:3!important}
+  .mobileBottom{position:fixed!important;left:0!important;right:0!important;bottom:0!important;z-index:100!important;background:#061022!important;border-top:1px solid #263b56!important;box-shadow:0 -8px 20px rgba(0,0,0,.25)!important;padding-bottom:calc(5px + env(safe-area-inset-bottom))!important}
+  .aboutShade{z-index:120!important}
+}
+@media(max-width:800px) and (orientation:landscape){
+ .app{padding-top:0!important;padding-bottom:0!important}
+}
+</style>
+<script id="bv-v94-fullscreen-about-fixes">
+(()=>{
+ const $=id=>document.getElementById(id);
+ const isAndroid=()=>/Android/i.test(navigator.userAgent);
+ const toastMsg=m=>{if(typeof window.toast==='function')window.toast(m);};
+ // Fullscreen must rotate to landscape and keep the channel strip attached under the video.
+ const oldFull=$('fullBtn');
+ if(oldFull){
+   const full=oldFull.cloneNode(true); oldFull.replaceWith(full);
+   full.addEventListener('click',async e=>{
+     e.preventDefault();e.stopImmediatePropagation();
+     const center=$('center'),player=$('player');
+     try{
+       if(document.fullscreenElement){
+         await document.exitFullscreen();
+         try{screen.orientation?.unlock?.()}catch{}
+         document.body.classList.remove('bv-rotate-mode');
+       }else{
+         if(center?.requestFullscreen) await center.requestFullscreen();
+         else if(player?.requestFullscreen) await player.requestFullscreen();
+         try{await screen.orientation?.lock?.('landscape')}catch{}
+       }
+     }catch(err){
+       // Embedded WebViews may deny Fullscreen API; use the app's existing rotate mode instead.
+       document.body.classList.add('bv-rotate-mode');
+       try{await screen.orientation?.lock?.('landscape')}catch{}
+     }
+   });
+ }
+ // In Android WebView, target=_blank/window.open often has no handler. Navigate the group URL directly.
+ document.addEventListener('click',e=>{
+   const b=e.target.closest('#aboutGroupBtn,.aboutGroupBtn');
+   if(!b)return;
+   e.preventDefault();e.stopImmediatePropagation();
+   let url='';
+   const content=$('aboutContent');
+   const anchor=content?.querySelector('a[href*="facebook.com"]');
+   if(anchor)url=anchor.href;
+   if(!url){
+     const rows=[...(Array.isArray(window.settingsRows)?window.settingsRows:[]),...(Array.isArray(window.adminLinks)?window.adminLinks:[])];
+     for(const r of rows){
+       const key=String(r.key||r.name||r.setting||r.setting_key||r.setting_name||r.title||'');
+       const value=String(r.url||r.link||r.target_url||r.facebook_url||r.group_url||r.setting_value||r.value||r.data||'').trim();
+       if(/facebook|ফেসবুক|group|গ্রুপ/i.test(key)&&/^https?:\/\/(www\.)?facebook\.com\//i.test(value)){url=value;break;}
+     }
+   }
+   if(url){location.href=url;}
+   else toastMsg('অ্যাডমিন সেটিংসে সঠিক Facebook Group URL দেওয়া নেই');
+ },true);
+ // Share: Web Share API first (Android share sheet), Android SEND intent as WebView fallback.
+ document.addEventListener('click',async e=>{
+   const b=e.target.closest('#aboutShareBtn');
+   if(!b)return;
+   e.preventDefault();e.stopImmediatePropagation();
+   const title='Bagerhat Vision';
+   const apkLink=(()=>{const rows=[...(Array.isArray(window.settingsRows)?window.settingsRows:[]),...(Array.isArray(window.adminLinks)?window.adminLinks:[])];for(const r of rows){const k=String(r.key||r.name||r.setting||r.setting_key||r.setting_name||'');const v=String(r.url||r.link||r.download_url||r.setting_value||r.value||r.data||'').trim();if(/apk.*(download|url|link)|download.*(url|link)|update.*url|অ্যাপ আপডেট|ডাউনলোড.*url|আপডেট.*url/i.test(k)&&/^https?:\/\//i.test(v))return v;}return location.href;})();
+   const shareText='📺 Bagerhat Vision — লাইভ টিভি দেখুন!\\nবন্ধুদের সাথে শেয়ার করুন ❤️\\n\\n📥 অ্যাপ ডাউনলোড করুন: '+apkLink;
+   try{
+     if(navigator.share){await navigator.share({title,text:shareText,url:apkLink});return;}
+     if(isAndroid()){
+       const encoded=encodeURIComponent(shareText).replace(/%20/g,'%20');
+       location.href='intent://send/#Intent;action=android.intent.action.SEND;type=text/plain;S.android.intent.extra.TEXT='+encoded+';S.android.intent.extra.SUBJECT='+encodeURIComponent(title)+';end';
+       return;
+     }
+     if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(shareText);toastMsg('শেয়ারের লেখা কপি হয়েছে');}
+     else toastMsg('এই ব্রাউজারে শেয়ার সুবিধা নেই');
+   }catch(err){if(err?.name!=='AbortError')toastMsg('শেয়ার করা যায়নি');}
+ },true);
+})();
+</script>
